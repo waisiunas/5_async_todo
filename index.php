@@ -79,7 +79,7 @@ require_once './partials/head.php';
 
 			const taskInputElement = document.querySelector("#task-input");
 
-			taskInputValue = taskInputElement.value;
+			let taskInputValue = taskInputElement.value;
 
 			if (taskInputValue == "") {
 				taskInputElement.classList.add("is-invalid");
@@ -128,9 +128,9 @@ require_once './partials/head.php';
 				.then(function(result) {
 					const tasksElement = document.querySelector("#tasks");
 					let tasksRows = "";
-					if(result.length > 0) {
-						result.forEach(function (task) {
-						tasksRows += `<div class="row mb-2">
+					if (result.length > 0) {
+						result.forEach(function(task) {
+							tasksRows += `<div class="row mb-2">
 											<div class="col-md">
 												<input type="text" class="form-control" id="task-${task.id}" value="${task.body}" placeholder="Please enter the task!" readonly>
 											</div>
@@ -138,16 +138,96 @@ require_once './partials/head.php';
 												<button class="btn btn-info" id="edit-${task.id}" onclick="editTask(${task.id})">Edit</button>
 											</div>
 											<div class="col-md-auto">
-												<button class="btn btn-danger" id="delete-${task.id}" onclick="editTask(${task.id})">Delete</button>
+												<button class="btn btn-danger" id="delete-${task.id}" onclick="deleteTask(${task.id})">Delete</button>
 											</div>
 										</div>`
-					});
+						});
 					} else {
 						tasksRows = `<div class="alert alert-info m-0" id="alert-msg">No record found!</div>`;
 					}
 
 					tasksElement.innerHTML = tasksRows;
 				});
+		}
+
+		function editTask(id) {
+			const editInputElement = document.querySelector(`#task-${id}`);
+			const editBtnElement = document.querySelector(`#edit-${id}`);
+
+			let editInputValue = editInputElement.value;
+			let length = editInputValue.length;
+
+			if (editBtnElement.innerText == "Edit") {
+				editBtnElement.innerText = "Save";
+				editInputElement.removeAttribute("readonly");
+				editInputElement.focus();
+				editInputElement.setSelectionRange(length, length);
+			} else {
+				if (editInputValue == "") {
+					editInputElement.classList.add("is-invalid");
+				} else {
+					const data = {
+						body: editInputValue,
+						id: id,
+						submit: 1,
+					};
+
+					fetch("./edit-task.php", {
+							method: "POST",
+							body: JSON.stringify(data),
+							headers: {
+								'Content-Type': 'application.json'
+							},
+						})
+						.then(function(response) {
+							return response.json();
+						})
+						.then(function(result) {
+							editInputElement.classList.remove("is-invalid");
+
+							if (result.errorBody) {
+								editInputElement.classList.add("is-invalid");
+							} else if (result.failure) {
+								alertElement.innerHTML = alertMaker('danger', result.failure);
+							} else if (result.success) {
+								alertElement.innerHTML = alertMaker('success', result.success);
+								editBtnElement.innerText = "Edit";
+								editInputElement.addAttribute("readonly", true);
+							} else {
+								alertElement.innerHTML = alertMaker('danger', 'Something went wrong!');
+							}
+						});
+				}
+
+			}
+		}
+
+		function deleteTask(id) {
+			const data = {
+				id: id,
+				submit: 1,
+			};
+
+			fetch("./delete-task.php", {
+					method: 'POST',
+					body: JSON.stringify(data),
+					headers: {
+						'Content-Type': 'application.json'
+					}
+				})
+				.then(function(response) {
+					return response.json();
+				})
+				.then(function(result) {
+					if (result.failure) {
+						alertElement.innerHTML = alertMaker('danger', result.failure);
+					} else if (result.success) {
+						alertElement.innerHTML = alertMaker('success', result.success);
+						showTasks();
+					} else {
+						alertElement.innerHTML = alertMaker('danger', 'Something went wrong!');
+					}
+				})
 		}
 
 		function alertMaker(cls, msg) {
